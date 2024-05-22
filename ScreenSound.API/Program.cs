@@ -52,7 +52,7 @@ app.AddEndPointsArtistas();
 app.AddEndPointsMusicas();
 app.AddEndPointGeneros();
 
-app.MapGroup("auth").MapIdentityApi<PessoaComAcesso>().WithTags("Autorização");
+app.MapGroup("auth").MapIdentityApi<PessoaComAcesso>().WithTags("AutorizaÃ§Ã£o");
 
 app.UseSwagger();
 app.UseSwaggerUI();
