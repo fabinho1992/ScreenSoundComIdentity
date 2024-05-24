@@ -1,0 +1,13 @@
+﻿
+
+@inject NavigationManager navigationManager
+
+
+@code {
+    protected override void OnInitialized()
+    {
+        //Quando o usuario sem acesso tenta fazer algo que ~sem acesso não consegue, ele é direcionado para a pagina de login ,
+        //  e após um login bem sucedido ele automaticamente e redirecionado para a pagina que ele estava tentando acessar
+        navigationManager.NavigateToLogin($"/login?ReturnUrl={Uri.UnescapeDataString(navigationManager.Uri)}");
+    }
+}

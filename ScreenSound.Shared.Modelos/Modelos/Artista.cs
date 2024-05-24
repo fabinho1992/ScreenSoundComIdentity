@@ -1,8 +1,13 @@
-﻿namespace ScreenSound.Modelos; 
+﻿
+
+using ScreenSound.Shared.Modelos.Modelos;
+
+namespace ScreenSound.Modelos; 
 
 public class Artista 
 {
     public virtual ICollection<Musica> Musicas { get; set; } = new List<Musica>();
+    public virtual ICollection<AvaliacaoArtista> Avaliacoes { get; set; } = new List<AvaliacaoArtista>();
     public Artista()
     {
         //FotoPerfil = "https://cdn.pixabay.com/photo/2016/08/08/09/17/avatar-1577909_1280.png";
@@ -22,6 +27,20 @@ public class Artista
     public void AdicionarMusica(Musica musica)
     {
         Musicas.Add(musica);
+    }
+
+    public void AdicionarNota(int pessoaId, int nota)
+    {
+        //nota = Math.Min(Math.Max(nota, 1), 5); Essa lógica funciona para limitar a nota de 1 a 5 , mas existe uma operação mais enxuta
+        nota = Math.Clamp(nota, 1, 5);
+
+        Avaliacoes.Add(new AvaliacaoArtista
+        {
+            ArtistaId = this.Id,
+            Nota = nota,
+            PessoaId = pessoaId,
+            
+        });
     }
 
     public void ExibirDiscografia()
