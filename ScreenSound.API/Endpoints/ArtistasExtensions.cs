@@ -1,8 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Azure.Core;
+using Microsoft.AspNetCore.Mvc;
 using ScreenSound.API.Requests;
 using ScreenSound.API.Response;
 using ScreenSound.Banco;
 using ScreenSound.Modelos;
+using ScreenSound.Shared.Dados.Modelos;
+using System.Security.Claims;
 
 namespace ScreenSound.API.Endpoints;
 
@@ -78,18 +81,83 @@ public static class ArtistasExtensions
             dal.Atualizar(artistaAAtualizar);
             return Results.Ok();
         });
-        #endregion
-    }
 
-    private static ICollection<ArtistaResponse> EntityListToResponseList(IEnumerable<Artista> listaDeArtistas)
+        group.MapPost("avaliação", 
+            (
+                HttpContext context,
+                [FromBody] AvaliacaoArtistaRequest request,
+                [FromServices] DAL<Artista> dalArtista,
+                [FromServices] DAL<PessoaComAcesso> dalPessoa
+
+            ) => {
+				//recupero o artista pelo Id 
+				var artista = dalArtista.RecuperarPor(a =>a.Id == request.ArtistaId);
+                if(artista is null) return Results.NotFound();
+
+                //recupero o email da pessoa logada
+				var email = context.User.Claims
+		            .FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value
+		                ?? throw new InvalidOperationException("Pessoa não está conectada");
+                //recupero a pessoa pelo email
+                var pessoa = dalPessoa.RecuperarPor
+                (p => p.Email.Equals(email))?? throw new InvalidOperationException("Pessoa não está conectada");
+
+                //Adiciono a nota
+                var avaliacao = artista.Avaliacoes.FirstOrDefault(a => a.ArtistaId == request.ArtistaId && a.PessoaId == pessoa.Id);
+                if(avaliacao is null)
+                {
+					artista.AdicionarNota(pessoa.Id, request.nota);
+                }
+                else
+                {
+                    avaliacao.Nota = request.nota;
+                }
+                
+                dalArtista.Atualizar(artista);
+                return Results.Created();
+
+			});
+		group.MapGet("{id}/avaliacao", (
+	        int id,
+	        HttpContext context,
+	        [FromServices] DAL<Artista> dalArtista,
+	        [FromServices] DAL<PessoaComAcesso> dalPessoa
+	        ) =>
+		        {
+			        var artista = dalArtista.RecuperarPor(a => a.Id == id);
+			        if (artista is null) return Results.NotFound();
+			        var email = context.User.Claims
+				        .FirstOrDefault(c => c.Type.Equals(ClaimTypes.Email))?.Value
+				        ?? throw new InvalidOperationException("Não foi encontrado o email da pessoa logada");
+
+			        var pessoa = dalPessoa.RecuperarPor(p => p.Email!.Equals(email))
+				        ?? throw new InvalidOperationException("Não foi encontrado o email da pessoa logada");
+
+			        var avaliacao = artista
+				        .Avaliacoes
+				        .FirstOrDefault(a => a.ArtistaId == id && a.PessoaId == pessoa.Id);
+
+			        if (avaliacao is null) return Results.Ok(new AvaliacaoArtistaResponse(id, artista.Nome, 0));
+			        else return Results.Ok(new AvaliacaoArtistaResponse(id, artista.Nome, avaliacao.Nota));
+		        });
+
+
+
+		#endregion
+	}
+
+	private static ICollection<ArtistaResponse> EntityListToResponseList(IEnumerable<Artista> listaDeArtistas)
     {
         return listaDeArtistas.Select(a => EntityToResponse(a)).ToList();
     }
 
     private static ArtistaResponse EntityToResponse(Artista artista)
     {
-        return new ArtistaResponse(artista.Id, artista.Nome, artista.Bio, artista.FotoPerfil);
+        return new ArtistaResponse(artista.Id, artista.Nome, artista.Bio, artista.FotoPerfil)
+        {
+			//Aqui seleciono as notas dentro de artistas e faço uma media, se o artista ainda não tiver nota , o DefaultIfEmpty(0) faz com que apareça a nota 0.
+			Classificacao = artista.Avaliacoes.Select(a => a.Nota).DefaultIfEmpty(0).Average()
+        };
     }
 
-  
 }
